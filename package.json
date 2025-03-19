@@ -1,0 +1,19 @@
+{
+  "name": "rssbot-server",
+  "version": "1.0.0",
+  "description": "RSS bot server for Vercel",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "deepl-node": "^1.17.3",
+    "jsonwebtoken": "^9.0.2",
+    "node-fetch": "^3.3.2",
+    "rss-to-json": "^2.1.1"
+  }
+}
