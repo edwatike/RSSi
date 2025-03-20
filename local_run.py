@@ -11,7 +11,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Токен бота (из твоего vercel.json)
+# Токен бота
 TOKEN = "7763394832:AAFzvdwFrxtzfVeaJMwCDvsoD0JmYZ7Tkqo"
 
 # Функция для проверки лент (заглушка, замени на свою логику)

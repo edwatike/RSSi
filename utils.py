@@ -5,22 +5,28 @@ from bs4 import BeautifulSoup
 import json
 from datetime import datetime
 
-# Настройка логирования (если нужно)
+# Настройка логирования
 import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Пример функций (адаптируй под свои)
 def load_sent_entries():
-    try:
-        with open("sent_entries.json", "r") as f:
-            return set(json.load(f))
-    except FileNotFoundError:
-        return set()
+    # Временная заглушка, так как Vercel не поддерживает постоянное хранение файлов
+    # В будущем замени на работу с базой данных
+    return set()
+    # try:
+    #     with open("sent_entries.json", "r") as f:
+    #         return set(json.load(f))
+    # except FileNotFoundError:
+    #     return set()
 
 def save_sent_entries(entries):
-    with open("sent_entries.json", "w") as f:
-        json.dump(list(entries), f)
+    # Временная заглушка, так как Vercel не поддерживает постоянное хранение файлов
+    # В будущем замени на работу с базой данных
+    pass
+    # with open("sent_entries.json", "w") as f:
+    #     json.dump(list(entries), f)
 
 def extract_media(url):
     try:
