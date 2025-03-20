@@ -94,7 +94,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app.add_handler(CommandHandler("start", start))
 
 # Настройка планировщика
-scheduler = AsyncScheduler()
+scheduler = AsyncIOScheduler()
 scheduler.add_job(check_feeds, 'interval', seconds=10, args=[ContextTypes.DEFAULT_TYPE()])
 scheduler.start()
 
