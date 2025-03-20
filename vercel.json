@@ -13,12 +13,10 @@
     {
       "src": "/api/check",
       "dest": "api/index.py"
+    },
+    {
+      "src": "/",
+      "dest": "api/index.py"
     }
-  ],
-  "env": {
-    "TOKEN": "7763394832:AAFzvdwFrxtzfVeaJMwCDvsoD0JmYZ7Tkqo",
-    "CHAT_ID": "-1002447054616",
-    "DEEPL_API_KEY": "49a435b1-7380-4a48-bf9d-11b5db85f42b:fx",
-    "START_DATE": "2025-03-19"
-  }
+  ]
 }
