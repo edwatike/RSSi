@@ -1,6 +1,4 @@
-feedparser
-python-telegram-bot==13.15
-beautifulsoup4
-pytz
-deepl
-requests
+python-telegram-bot==20.8
+apscheduler==3.10.4
+requests==2.31.0
+deepl==1.18.0

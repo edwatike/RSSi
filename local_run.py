@@ -1,79 +1,58 @@
-import tkinter as tk
-from tkinter import ttk
-import pytz
+import logging
+from apscheduler.schedulers.blocking import BlockingScheduler
+from telegram.ext import Application
 from datetime import datetime
-from bot import run_bot
-import threading
 
-class LogWindow:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Логи бота")
-        self.root.geometry("600x400")
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-        self.log_text = tk.Text(self.root, wrap=tk.WORD, height=20, width=70)
-        self.log_text.pack(padx=10, pady=10, expand=True, fill=tk.BOTH)
+# Токен бота (из твоего vercel.json)
+TOKEN = "7763394832:AAFzvdwFrxtzfVeaJMwCDvsoD0JmYZ7Tkqo"
 
-        self.scrollbar = ttk.Scrollbar(self.root, orient=tk.VERTICAL, command=self.log_text.yview)
-        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.log_text['yscrollcommand'] = self.scrollbar.set
+# Функция для проверки лент (заглушка, замени на свою логику)
+def check_feeds():
+    logger.info("check_feeds started")
+    try:
+        # Здесь должна быть твоя логика для проверки лент
+        # Например, запрос к API, обработка данных и отправка в Telegram
+        logger.info("Processing feeds...")
+        # Пример: просто логируем текущую дату
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        logger.info(f"Current time: {current_time}")
+    except Exception as e:
+        logger.error(f"Error in check_feeds: {e}")
+    finally:
+        logger.info("check_feeds finished")
 
-    def append_log(self, message):
-        self.log_text.insert(tk.END, message + "\n")
-        self.log_text.see(tk.END)
-
-class DateEntryWindow:
-    def __init__(self, root, token, chat_id, rss_feeds, deepl_api_key, log_window):
-        self.root = root
-        self.root.title("Введите дату начала")
-        self.root.geometry("300x150")
-        self.token = token
-        self.chat_id = chat_id
-        self.rss_feeds = rss_feeds
-        self.deepl_api_key = deepl_api_key
-        self.log_window = log_window
-
-        self.label = ttk.Label(self.root, text="Введите дату (ГГГГ-ММ-ДД):")
-        self.label.pack(pady=10)
-
-        self.date_entry = ttk.Entry(self.root)
-        self.date_entry.pack(pady=5)
-        self.date_entry.insert(0, "2025-03-19")
-
-        self.submit_button = ttk.Button(self.root, text="Запустить бота", command=self.submit)
-        self.submit_button.pack(pady=10)
-
-    def submit(self):
-        date_str = self.date_entry.get()
-        try:
-            start_date = datetime.strptime(date_str, '%Y-%m-%d').replace(tzinfo=pytz.UTC)
-            self.log_window.append_log(f"Дата начала проверки: {start_date}")
-            self.root.destroy()
-            # Запускаем бота в главном потоке
-            run_bot(self.token, self.chat_id, self.rss_feeds, self.deepl_api_key, start_date)
-        except ValueError:
-            self.log_window.append_log("Ошибка: Неверный формат даты. Используйте ГГГГ-ММ-ДД.")
-
+# Основная функция для запуска бота
 def main():
-    token = "7763394832:AAFzvdwFrxtzfVeaJMwCDvsoD0JmYZ7Tkqo"
-    chat_id = "-1002447054616"
-    deepl_api_key = "49a435b1-7380-4a48-bf9d-11b5db85f42b:fx"
-    rss_feeds = [
-        'https://towardsdatascience.com/feed',
-        'https://venturebeat.com/feed/',
-        'https://rss.app/feeds/PNcbNOcr3uiLMKOm.xml'
-    ]
+    # Инициализация бота
+    logger.info("Initializing bot...")
+    app = Application.builder().token(TOKEN).build()
 
-    # Создаем окно логов
-    log_root = tk.Tk()
-    log_window = LogWindow(log_root)
+    # Удаление вебхука (если он был установлен)
+    logger.info("Removing webhook...")
+    app.bot.delete_webhook()
 
-    # Создаем окно ввода даты
-    date_root = tk.Toplevel(log_root)
-    DateEntryWindow(date_root, token, chat_id, rss_feeds, deepl_api_key, log_window)
+    # Инициализация планировщика
+    logger.info("Setting up scheduler...")
+    scheduler = BlockingScheduler()
 
-    # Запускаем GUI в главном потоке
-    log_root.mainloop()
+    # Добавление задачи check_feeds с интервалом 10 секунд (для теста)
+    scheduler.add_job(check_feeds, 'interval', seconds=10)
+
+    # Запуск планировщика
+    logger.info("Starting scheduler...")
+    try:
+        scheduler.start()
+    except KeyboardInterrupt:
+        logger.info("Shutting down scheduler...")
+        scheduler.shutdown()
+        logger.info("Scheduler stopped")
 
 if __name__ == "__main__":
     main()
