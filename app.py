@@ -42,6 +42,7 @@ def upload_article():
     file.save(os.path.join(ARTICLES_DIR, filename))
     return "File uploaded successfully", 200
 
+# Для Vercel важно, чтобы приложение было доступно как WSGI-приложение
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
