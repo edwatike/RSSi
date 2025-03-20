@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from apscheduler.schedulers.blocking import BlockingScheduler
 from telegram.ext import Application
 from datetime import datetime
@@ -34,16 +35,16 @@ def main():
     logger.info("Initializing bot...")
     app = Application.builder().token(TOKEN).build()
 
-    # Удаление вебхука (если он был установлен)
+    # Удаление вебхука (асинхронно)
     logger.info("Removing webhook...")
-    app.bot.delete_webhook()
+    asyncio.run(app.bot.delete_webhook())
 
     # Инициализация планировщика
     logger.info("Setting up scheduler...")
     scheduler = BlockingScheduler()
 
-    # Добавление задачи check_feeds с интервалом 10 секунд (для теста)
-    scheduler.add_job(check_feeds, 'interval', seconds=10)
+    # Добавление задачи check_feeds с интервалом 30 секунд (для теста)
+    scheduler.add_job(check_feeds, 'interval', seconds=30)
 
     # Запуск планировщика
     logger.info("Starting scheduler...")
