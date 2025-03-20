@@ -1,4 +1,5 @@
 python-telegram-bot==22.0
 requests
-apscheduler==4.0.0a5
+apscheduler==3.10.4
 feedparser
+deepl==1.18.0

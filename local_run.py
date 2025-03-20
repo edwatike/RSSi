@@ -1,5 +1,6 @@
 import feedparser
 import requests
+import deepl
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -8,6 +9,12 @@ from datetime import datetime
 
 # Токен бота
 BOT_TOKEN = "7763394832:AAFzvdwFrxtzfVeaJMwCDvsoD0JmYZ7Tkqo"
+
+# API-ключ DeepL
+DEEPL_API_KEY = "49a435b1-7380-4a48-bf9d-11b5db85f42b:fx"  # Замени на свой ключ
+
+# Инициализация DeepL Translator
+translator = deepl.Translator(DEEPL_API_KEY)
 
 # URL сервера
 SERVER_URL = "https://rssbot-server.onrender.com"
@@ -32,7 +39,7 @@ RSS_FEEDS = [
 app = Application.builder().token(BOT_TOKEN).build()
 
 # Функция для проверки новых статей
-async def check_feeds(bot):  # Изменили аргумент на bot
+async def check_feeds(bot):
     print("check_feeds started")
     for feed_url in RSS_FEEDS:
         print(f"Checking feed: {feed_url}")
@@ -41,7 +48,22 @@ async def check_feeds(bot):  # Изменили аргумент на bot
             # Используем дату публикации и заголовок для уникальности
             published = entry.get("published", entry.get("updated", ""))
             title = entry.get("title", "No title")
-            filename = f"{published}_{title}.html".replace(" ", "_").replace(":", "-")
+            summary = entry.get("summary", "No summary")
+            link = entry.get("link", "")
+
+            # Переводим заголовок и описание на русский
+            try:
+                translated_title = translator.translate_text(title, target_lang="RU").text
+                translated_summary = translator.translate_text(summary, target_lang="RU").text
+                translated_read_more = translator.translate_text("Read more", target_lang="RU").text
+            except Exception as e:
+                print(f"Translation error: {e}")
+                translated_title = title  # Если перевод не удался, оставляем оригинал
+                translated_summary = summary
+                translated_read_more = "Read more"
+
+            # Формируем имя файла на основе переведённого заголовка
+            filename = f"{published}_{translated_title}.html".replace(" ", "_").replace(":", "-")
             
             # Проверяем, существует ли файл на сервере
             response = requests.head(
@@ -51,13 +73,12 @@ async def check_feeds(bot):  # Изменили аргумент на bot
             if response.status_code == 200:
                 continue  # Файл уже существует, пропускаем
             
-            # Формируем содержимое статьи
-            content = f"<h1>{title}</h1>"
+            # Формируем содержимое переведённой статьи
+            content = f"<h1>{translated_title}</h1>"
             content += f"<p>Published: {published}</p>"
-            content += f"<p>{entry.get('summary', 'No summary')}</p>"
-            link = entry.get("link", "")
+            content += f"<p>{translated_summary}</p>"
             if link:
-                content += f'<p><a href="{link}">Read more</a></p>'
+                content += f'<p><a href="{link}">{translated_read_more}</a></p>'
             
             # Сохраняем статью во временный файл
             temp_file_path = os.path.join(TEMP_DIR, filename)
@@ -77,7 +98,7 @@ async def check_feeds(bot):  # Изменили аргумент на bot
                 print(f"Article {filename} uploaded to server")
                 # Формируем ссылку на статью
                 article_url = f"{SERVER_URL}/articles/{filename}"
-                message = f"New article: {title}\n{article_url}"
+                message = f"Новая статья: {translated_title}\n{article_url}"
                 # Отправляем сообщение в канал
                 await bot.send_message(chat_id=CHANNEL_ID, text=message)
             else:
@@ -95,7 +116,7 @@ app.add_handler(CommandHandler("start", start))
 
 # Настройка планировщика
 scheduler = AsyncIOScheduler()
-scheduler.add_job(check_feeds, 'interval', seconds=10, args=[app.bot])  # Передаём app.bot
+scheduler.add_job(check_feeds, 'interval', seconds=10, args=[app.bot])
 scheduler.start()
 
 # Запуск бота
