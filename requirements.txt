@@ -1,2 +1,6 @@
-flask
-gunicorn
+feedparser
+python-telegram-bot==20.8
+beautifulsoup4
+pytz
+deepl
+requests
