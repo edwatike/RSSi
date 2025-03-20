@@ -1,51 +1,55 @@
-from flask import Flask, send_from_directory, request, abort
+from flask import Flask, request, abort, send_from_directory, make_response
 import os
-from functools import wraps
 
 app = Flask(__name__)
 
-# Настройки базовой авторизации
-USERNAME = "admin"
-PASSWORD = "yourpassword123"  # Замените на свой пароль
-
 # Папка для хранения статей
 ARTICLES_DIR = "articles"
-try:
-    if not os.path.exists(ARTICLES_DIR):
-        os.makedirs(ARTICLES_DIR)
-except Exception as e:
-    print(f"Error creating directory {ARTICLES_DIR}: {e}")
-    raise
+os.makedirs(ARTICLES_DIR, exist_ok=True)
 
-# Функция для проверки авторизации
-def require_auth(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        auth = request.authorization
-        if not auth or auth.username != USERNAME or auth.password != PASSWORD:
-            abort(401)  # Требуется авторизация
-        return f(*args, **kwargs)
-    return decorated
+# Учётные данные для базовой авторизации
+USERNAME = "admin"
+PASSWORD = "yourpassword123"
 
-# Маршрут для отображения статей
-@app.route('/articles/<path:filename>')
-@require_auth
-def serve_article(filename):
-    return send_from_directory(ARTICLES_DIR, filename)
+# Проверка авторизации
+def check_auth(username, password):
+    return username == USERNAME and password == PASSWORD
 
-# Маршрут для загрузки статей (для бота)
+# Функция для создания ответа 401 с заголовком WWW-Authenticate
+def authenticate():
+    return make_response(
+        "The server could not verify that you are authorized to access the URL requested.", 
+        401,
+        {'WWW-Authenticate': 'Basic realm="Login Required"'}
+    )
+
+# Обработчик для загрузки статей
 @app.route('/upload', methods=['POST'])
-@require_auth
 def upload_article():
+    auth = request.authorization
+    if not auth or not check_auth(auth.username, auth.password):
+        return authenticate()
+    
     if 'file' not in request.files:
-        return "No file part", 400
+        abort(400, description="No file part")
+    
     file = request.files['file']
     if file.filename == '':
-        return "No selected file", 400
-    filename = file.filename
-    file.save(os.path.join(ARTICLES_DIR, filename))
-    return "File uploaded successfully", 200
+        abort(400, description="No selected file")
+    
+    # Сохраняем файл в папку articles
+    file_path = os.path.join(ARTICLES_DIR, file.filename)
+    file.save(file_path)
+    return {"message": f"Article {file.filename} uploaded successfully"}, 200
+
+# Обработчик для получения статей
+@app.route('/articles/<path:filename>')
+def get_article(filename):
+    auth = request.authorization
+    if not auth or not check_auth(auth.username, auth.password):
+        return authenticate()
+    
+    return send_from_directory(ARTICLES_DIR, filename)
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=5000)
