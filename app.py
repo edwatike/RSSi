@@ -23,6 +23,11 @@ def authenticate():
         {'WWW-Authenticate': 'Basic realm="Login Required"'}
     )
 
+# Корневой маршрут
+@app.route('/')
+def index():
+    return "Welcome to the RSS Bot Server! Articles are available at /articles/<filename>."
+
 # Обработчик для загрузки статей
 @app.route('/upload', methods=['POST'])
 def upload_article():
