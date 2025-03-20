@@ -10,8 +10,12 @@ PASSWORD = "yourpassword123"  # Замените на свой пароль
 
 # Папка для хранения статей
 ARTICLES_DIR = "articles"
-if not os.path.exists(ARTICLES_DIR):
-    os.makedirs(ARTICLES_DIR)
+try:
+    if not os.path.exists(ARTICLES_DIR):
+        os.makedirs(ARTICLES_DIR)
+except Exception as e:
+    print(f"Error creating directory {ARTICLES_DIR}: {e}")
+    raise
 
 # Функция для проверки авторизации
 def require_auth(f):
