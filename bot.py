@@ -1,112 +1,52 @@
 import logging
-import asyncio
-from telegram import Bot
-from telegram.ext import Updater, CommandHandler
-import pytz
-from datetime import datetime
-import requests
 import feedparser
+from telegram import Bot
+from datetime import datetime
 from utils import load_sent_entries, save_sent_entries, extract_media, is_after_start_date, translate_text, clean_html, fetch_article_content
+import os
 
 # Настройка логирования
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def check_feeds(context):
-    start_date = context.job.data['start_date']
-    token = context.job.data['token']
-    chat_id = context.job.data['chat_id']
-    rss_feeds = context.job.data['rss_feeds']
-    deepl_api_key = context.job.data['deepl_api_key']
-    sent_entries = context.job.data['sent_entries']
+# Получаем переменные окружения
+DEEPL_API_KEY = os.getenv("DEEPL_API_KEY")
+START_DATE = os.getenv("START_DATE")
 
-    logger.info("Проверка RSS-лент началась")
-    news_count = 0
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-    bot = Bot(token)
-    for feed_url in rss_feeds:
-        if news_count >= 5:
-            break
-        logger.info(f"Обрабатываю ленту: {feed_url}")
-        try:
-            response = requests.get(feed_url, headers=headers, timeout=10)
-            response.raise_for_status()
-            feed = feedparser.parse(response.content)
-            if feed.bozo:
-                logger.error(f"Ошибка парсинга {feed_url}: {feed.bozo_exception}")
+def check_feeds():
+    logger.info("check_feeds started")
+    try:
+        # Пример: парсинг RSS-ленты
+        feed = feedparser.parse("https://example.com/feed")
+        logger.info(f"Parsed feed: {feed.feed.title}")
+        
+        # Загрузка уже отправленных записей
+        sent_entries = load_sent_entries()
+        
+        # Парсинг даты начала
+        start_date = datetime.strptime(START_DATE, "%Y-%m-%d")
+        
+        for entry in feed.entries:
+            entry_id = entry.get("id", entry.link)
+            if entry_id in sent_entries:
                 continue
-            logger.info(f"Найдено {len(feed.entries)} записей в ленте {feed_url}")
-            for entry in feed.entries:
-                if news_count >= 5:
-                    break
-                entry_id = entry.get('id', entry.link)
-                if entry_id not in sent_entries and is_after_start_date(entry, start_date):
-                    logger.info(f"Новая запись: {entry.title}")
-                    title_ru = translate_text(entry.title, deepl_api_key)
-                    content = entry.get('content', [{'value': ''}])[0]['value'] if 'content' in entry else entry.get('summary', '')
-                    content_clean = clean_html(content)
-                    content_ru = translate_text(content_clean, deepl_api_key) if content_clean else ""
-                    article_text = fetch_article_content(entry.link)
-                    article_text_ru = translate_text(article_text, deepl_api_key) if article_text else "Полный текст недоступен."
-                    message = f"**{title_ru}**\n"
-                    if content_ru:
-                        message += f"{content_ru}\n\n"
-                    message += f"Полный текст:\n{article_text_ru}"
-                    if len(message) > 4096:
-                        message = message[:4000] + "...\n\n[Читать дальше]({entry.link})"
-                    photo_url, video_url = extract_media(entry)
-                    try:
-                        if video_url:
-                            bot.send_video(chat_id=chat_id, video=video_url, caption=message, parse_mode='Markdown')
-                        elif photo_url:
-                            bot.send_photo(chat_id=chat_id, photo=photo_url, caption=message, parse_mode='Markdown')
-                        else:
-                            bot.send_message(chat_id=chat_id, text=message, parse_mode='Markdown')
-                        sent_entries.add(entry_id)
-                        save_sent_entries(sent_entries)
-                        news_count += 1
-                        asyncio.sleep(12)  # Синхронный sleep, так как версия 13.x не полностью асинхронна
-                    except Exception as e:
-                        logger.error(f"Ошибка отправки {title_ru}: {str(e)}")
-                else:
-                    logger.debug(f"Запись уже отправлена или раньше даты: {entry.title}")
-        except Exception as e:
-            logger.error(f"Ошибка обработки ленты {feed_url}: {str(e)}")
-    logger.info(f"Проверка завершена, отправлено {news_count} новостей")
-
-def start(update, context):
-    logger.info(f"Команда /start от {update.message.from_user.username}")
-    update.message.reply_text("Бот запущен! Новости будут отправляться в канал на русском языке.")
-
-def error_handler(update, context):
-    logger.error(f"Ошибка: {context.error}")
-    if isinstance(context.error, telegram.error.Conflict):
-        logger.error("Конфликт: проверьте, что запущен только один бот.")
-        raise context.error
-
-def run_bot(token, chat_id, rss_feeds, deepl_api_key, start_date):
-    updater = Updater(token=token, use_context=True)
-    dispatcher = updater.dispatcher
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_error_handler(error_handler)
-
-    bot = Bot(token)
-    bot.delete_webhook()
-    logger.info("Вебхук удалён")
-
-    sent_entries = load_sent_entries()
-    job_data = {
-        'start_date': start_date,
-        'token': token,
-        'chat_id': chat_id,
-        'rss_feeds': rss_feeds,
-        'deepl_api_key': deepl_api_key,
-        'sent_entries': sent_entries
-    }
-
-    updater.job_queue.run_repeating(check_feeds, interval=600, first=0, context=job_data)
-
-    updater.start_polling()
-    updater.idle()
+                
+            published = datetime(*entry.published_parsed[:6])
+            if not is_after_start_date(published, start_date):
+                continue
+                
+            # Пример обработки записи
+            title = clean_html(entry.title)
+            translated_title = translate_text(title, DEEPL_API_KEY)
+            logger.info(f"Translated title: {translated_title}")
+            
+            # Добавляем запись в отправленные
+            sent_entries.add(entry_id)
+        
+        # Сохраняем отправленные записи
+        save_sent_entries(sent_entries)
+        
+    except Exception as e:
+        logger.error(f"Error in check_feeds: {e}")
+    finally:
+        logger.info("check_feeds finished")
