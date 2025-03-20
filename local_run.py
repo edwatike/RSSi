@@ -2,7 +2,7 @@ import feedparser
 import requests
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
-from apscheduler.schedulers.async_ import AsyncScheduler  # Изменили импорт
+from apscheduler.schedulers import AsyncScheduler  # Правильный импорт для версии 4.0.0a5
 import os
 from datetime import datetime
 
@@ -15,7 +15,7 @@ SERVER_USERNAME = "admin"
 SERVER_PASSWORD = "yourpassword123"
 
 # ID канала (замени на свой канал)
-CHANNEL_ID = "@noWnewnew"  # Укажи свой канал здесь
+CHANNEL_ID = "@noWnewnew"
 
 # Папка для временного хранения файлов
 TEMP_DIR = "temp"
@@ -94,7 +94,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app.add_handler(CommandHandler("start", start))
 
 # Настройка планировщика
-scheduler = AsyncScheduler()  # Изменили создание планировщика
+scheduler = AsyncScheduler()
 scheduler.add_job(check_feeds, 'interval', seconds=10, args=[ContextTypes.DEFAULT_TYPE()])
 scheduler.start()
 
