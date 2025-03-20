@@ -1,44 +1,42 @@
 import os
-from datetime import datetime
-import pytz
+import asyncio
 from telegram import Bot
-from telegram.ext import Updater
+import logging
 from bot import check_feeds
 
-def handler(request):
-    token = os.getenv("TOKEN")
-    chat_id = os.getenv("CHAT_ID")
-    deepl_api_key = os.getenv("DEEPL_API_KEY")
-    start_date_str = os.getenv("START_DATE")  # Формат: YYYY-MM-DD, например, 2025-03-19
-    rss_feeds = [
-        'https://towardsdatascience.com/feed',
-        'https://venturebeat.com/feed/',
-        'https://rss.app/feeds/PNcbNOcr3uiLMKOm.xml'
-    ]
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
+# Получаем переменные окружения
+TOKEN = os.getenv("TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
+
+# Функция для Vercel (обработчик HTTP-запросов)
+async def handler(request):
     try:
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').replace(tzinfo=pytz.UTC)
-    except ValueError:
+        logger.info("Received request on /api/check")
+        
+        # Вызов check_feeds
+        check_feeds()
+        
+        # Инициализация бота
+        bot = Bot(token=TOKEN)
+        
+        # Отправка тестового сообщения в чат (асинхронно)
+        await bot.send_message(chat_id=CHAT_ID, text="Server is running! 🚀")
+        
         return {
-            "statusCode": 400,
-            "body": "Invalid START_DATE format. Use YYYY-MM-DD."
+            "statusCode": 200,
+            "body": "Request processed successfully!"
+        }
+    except Exception as e:
+        logger.error(f"Error: {e}")
+        return {
+            "statusCode": 500,
+            "body": f"Error: {e}"
         }
 
-    updater = Updater(token=token, use_context=True)
-    context = updater.dispatcher
-    context.job = type('Job', (), {})()
-    context.job.data = {
-        'start_date': start_date,
-        'token': token,
-        'chat_id': chat_id,
-        'rss_feeds': rss_feeds,
-        'deepl_api_key': deepl_api_key,
-        'sent_entries': set()
-    }
-
-    check_feeds(context)
-
-    return {
-        "statusCode": 200,
-        "body": "RSS feeds checked successfully."
-    }
+# Vercel требует синхронный обработчик, поэтому оборачиваем асинхронный код
+def sync_handler(request):
+    return asyncio.run(handler(request))
