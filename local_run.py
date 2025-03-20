@@ -2,7 +2,7 @@ import feedparser
 import requests
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
-from apscheduler.schedulers import AsyncScheduler  # Правильный импорт для версии 4.0.0a5
+from apscheduler.schedulers.asyncio import AsyncIOScheduler  # Правильный импорт для версии 3.10.4
 import os
 from datetime import datetime
 
@@ -14,7 +14,7 @@ SERVER_URL = "https://rssbot-server.onrender.com"
 SERVER_USERNAME = "admin"
 SERVER_PASSWORD = "yourpassword123"
 
-# ID канала (замени на свой канал)
+# ID канала
 CHANNEL_ID = "@noWnewnew"
 
 # Папка для временного хранения файлов
