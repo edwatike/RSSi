@@ -14,8 +14,8 @@ SERVER_URL = "https://rssbot-server.onrender.com"
 SERVER_USERNAME = "admin"
 SERVER_PASSWORD = "yourpassword123"
 
-# ID канала (замени на свой канал, например, "@MyRSSChannel")
-CHANNEL_ID = "-1002447054616"  # Укажи свой канал здесь
+# ID канала (замени на свой канал, например, "@M@noWnewnew")
+CHANNEL_ID = "@noWnewnew"  # Укажи свой канал здесь
 
 # Папка для временного хранения файлов
 TEMP_DIR = "temp"
