@@ -1,19 +1,18 @@
 import logging
 import asyncio
 from telegram import Bot
-from telegram.ext import Application, CommandHandler
+from telegram.ext import Updater, CommandHandler
 import pytz
 from datetime import datetime
 import requests
 import feedparser
-# Исправленный импорт: абсолютный вместо относительного
 from utils import load_sent_entries, save_sent_entries, extract_media, is_after_start_date, translate_text, clean_html, fetch_article_content
 
 # Настройка логирования
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def check_feeds(context):
+def check_feeds(context):
     start_date = context.job.data['start_date']
     token = context.job.data['token']
     chat_id = context.job.data['chat_id']
@@ -26,6 +25,7 @@ async def check_feeds(context):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
+    bot = Bot(token)
     for feed_url in rss_feeds:
         if news_count >= 5:
             break
@@ -59,15 +59,15 @@ async def check_feeds(context):
                     photo_url, video_url = extract_media(entry)
                     try:
                         if video_url:
-                            await context.bot.send_video(chat_id=chat_id, video=video_url, caption=message, parse_mode='Markdown')
+                            bot.send_video(chat_id=chat_id, video=video_url, caption=message, parse_mode='Markdown')
                         elif photo_url:
-                            await context.bot.send_photo(chat_id=chat_id, photo=photo_url, caption=message, parse_mode='Markdown')
+                            bot.send_photo(chat_id=chat_id, photo=photo_url, caption=message, parse_mode='Markdown')
                         else:
-                            await context.bot.send_message(chat_id=chat_id, text=message, parse_mode='Markdown')
+                            bot.send_message(chat_id=chat_id, text=message, parse_mode='Markdown')
                         sent_entries.add(entry_id)
                         save_sent_entries(sent_entries)
                         news_count += 1
-                        await asyncio.sleep(12)
+                        asyncio.sleep(12)  # Синхронный sleep, так как версия 13.x не полностью асинхронна
                     except Exception as e:
                         logger.error(f"Ошибка отправки {title_ru}: {str(e)}")
                 else:
@@ -76,24 +76,24 @@ async def check_feeds(context):
             logger.error(f"Ошибка обработки ленты {feed_url}: {str(e)}")
     logger.info(f"Проверка завершена, отправлено {news_count} новостей")
 
-async def start(update, context):
+def start(update, context):
     logger.info(f"Команда /start от {update.message.from_user.username}")
-    await update.message.reply_text("Бот запущен! Новости будут отправляться в канал на русском языке.")
+    update.message.reply_text("Бот запущен! Новости будут отправляться в канал на русском языке.")
 
-async def error_handler(update, context):
+def error_handler(update, context):
     logger.error(f"Ошибка: {context.error}")
     if isinstance(context.error, telegram.error.Conflict):
         logger.error("Конфликт: проверьте, что запущен только один бот.")
         raise context.error
 
 def run_bot(token, chat_id, rss_feeds, deepl_api_key, start_date):
-    app = Application.builder().token(token).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_error_handler(error_handler)
+    updater = Updater(token=token, use_context=True)
+    dispatcher = updater.dispatcher
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_error_handler(error_handler)
 
     bot = Bot(token)
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(bot.delete_webhook(drop_pending_updates=True))
+    bot.delete_webhook()
     logger.info("Вебхук удалён")
 
     sent_entries = load_sent_entries()
@@ -106,9 +106,7 @@ def run_bot(token, chat_id, rss_feeds, deepl_api_key, start_date):
         'sent_entries': sent_entries
     }
 
-    app.job_queue.scheduler.configure(timezone=pytz.timezone('UTC'))
-    app.job_queue.run_repeating(check_feeds, interval=600, first=0, data=job_data)
+    updater.job_queue.run_repeating(check_feeds, interval=600, first=0, context=job_data)
 
-    loop.run_until_complete(app.initialize())
-    loop.run_until_complete(app.start())
-    loop.run_forever()
+    updater.start_polling()
+    updater.idle()

@@ -1,10 +1,8 @@
 import os
-import asyncio
 from datetime import datetime
 import pytz
 from telegram import Bot
-from telegram.ext import Application
-# Исправленный импорт: абсолютный вместо относительного
+from telegram.ext import Updater
 from bot import check_feeds
 
 def handler(request):
@@ -26,12 +24,8 @@ def handler(request):
             "body": "Invalid START_DATE format. Use YYYY-MM-DD."
         }
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    app = Application.builder().token(token).build()
-    context = app.context_types.context()
-    context.bot = app.bot
+    updater = Updater(token=token, use_context=True)
+    context = updater.dispatcher
     context.job = type('Job', (), {})()
     context.job.data = {
         'start_date': start_date,
@@ -42,8 +36,7 @@ def handler(request):
         'sent_entries': set()
     }
 
-    loop.run_until_complete(check_feeds(context))
-    loop.close()
+    check_feeds(context)
 
     return {
         "statusCode": 200,

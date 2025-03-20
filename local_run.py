@@ -1,77 +1,79 @@
 import tkinter as tk
-from tkinter import simpledialog, scrolledtext, messagebox
-import logging
-import threading
-from datetime import datetime
+from tkinter import ttk
 import pytz
+from datetime import datetime
 from bot import run_bot
+import threading
 
-# Настройка логирования
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
+class LogWindow:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Логи бота")
+        self.root.geometry("600x400")
 
-class LogHandler(logging.Handler):
-    def __init__(self, text_widget):
-        super().__init__()
-        self.text_widget = text_widget
+        self.log_text = tk.Text(self.root, wrap=tk.WORD, height=20, width=70)
+        self.log_text.pack(padx=10, pady=10, expand=True, fill=tk.BOTH)
 
-    def emit(self, record):
-        msg = self.format(record)
-        self.text_widget.after(0, self._insert_text, msg)
+        self.scrollbar = ttk.Scrollbar(self.root, orient=tk.VERTICAL, command=self.log_text.yview)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.log_text['yscrollcommand'] = self.scrollbar.set
 
-    def _insert_text(self, msg):
-        self.text_widget.insert(tk.END, msg + '\n')
-        self.text_widget.see(tk.END)
+    def append_log(self, message):
+        self.log_text.insert(tk.END, message + "\n")
+        self.log_text.see(tk.END)
 
-def setup_log_window():
-    log_window = tk.Tk()
-    log_window.title("Логи RSS-бота")
-    log_window.geometry("600x400")
-    log_text = scrolledtext.ScrolledText(log_window, wrap=tk.WORD, height=20, width=70)
-    log_text.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
-    log_handler = LogHandler(log_text)
-    log_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-    logger.addHandler(log_handler)
-    return log_window
+class DateEntryWindow:
+    def __init__(self, root, token, chat_id, rss_feeds, deepl_api_key, log_window):
+        self.root = root
+        self.root.title("Введите дату начала")
+        self.root.geometry("300x150")
+        self.token = token
+        self.chat_id = chat_id
+        self.rss_feeds = rss_feeds
+        self.deepl_api_key = deepl_api_key
+        self.log_window = log_window
 
-def get_start_date():
-    current_year = datetime.now().year
-    root = tk.Tk()
-    root.withdraw()
-    while True:
-        date_input = simpledialog.askstring("Дата", "С какого месяца и дня смотреть новости? (Формат: ММ-ДД, например, 03-19):")
-        if date_input is None:
-            logger.info("Пользователь отменил ввод даты")
-            return None
+        self.label = ttk.Label(self.root, text="Введите дату (ГГГГ-ММ-ДД):")
+        self.label.pack(pady=10)
+
+        self.date_entry = ttk.Entry(self.root)
+        self.date_entry.pack(pady=5)
+        self.date_entry.insert(0, "2025-03-19")
+
+        self.submit_button = ttk.Button(self.root, text="Запустить бота", command=self.submit)
+        self.submit_button.pack(pady=10)
+
+    def submit(self):
+        date_str = self.date_entry.get()
         try:
-            start_date = datetime.strptime(f"{current_year}-{date_input}", '%Y-%m-%d')
-            return start_date.replace(tzinfo=pytz.UTC)
+            start_date = datetime.strptime(date_str, '%Y-%m-%d').replace(tzinfo=pytz.UTC)
+            self.log_window.append_log(f"Дата начала проверки: {start_date}")
+            self.root.destroy()
+            # Запускаем бота в главном потоке
+            run_bot(self.token, self.chat_id, self.rss_feeds, self.deepl_api_key, start_date)
         except ValueError:
-            messagebox.showerror("Ошибка", "Неверный формат даты. Используйте ММ-ДД (например, 03-19).")
+            self.log_window.append_log("Ошибка: Неверный формат даты. Используйте ГГГГ-ММ-ДД.")
 
 def main():
-    log_window = setup_log_window()
-
-    token = '7763394832:AAFzvdwFrxtzfVeaJMwCDvsoD0JmYZ7Tkqo'
-    chat_id = '-1002447054616'
-    deepl_api_key = '49a435b1-7380-4a48-bf9d-11b5db85f42b:fx'
+    token = "7763394832:AAFzvdwFrxtzfVeaJMwCDvsoD0JmYZ7Tkqo"
+    chat_id = "-1002447054616"
+    deepl_api_key = "49a435b1-7380-4a48-bf9d-11b5db85f42b:fx"
     rss_feeds = [
         'https://towardsdatascience.com/feed',
         'https://venturebeat.com/feed/',
         'https://rss.app/feeds/PNcbNOcr3uiLMKOm.xml'
     ]
 
-    start_date = get_start_date()
-    if start_date is None:
-        log_window.destroy()
-        return
+    # Создаем окно логов
+    log_root = tk.Tk()
+    log_window = LogWindow(log_root)
 
-    logger.info(f"Дата начала проверки: {start_date}")
+    # Создаем окно ввода даты
+    date_root = tk.Toplevel(log_root)
+    DateEntryWindow(date_root, token, chat_id, rss_feeds, deepl_api_key, log_window)
 
-    bot_thread = threading.Thread(target=run_bot, args=(token, chat_id, rss_feeds, deepl_api_key, start_date), daemon=True)
-    bot_thread.start()
+    # Запускаем GUI в главном потоке
+    log_root.mainloop()
 
-    log_window.mainloop()
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
