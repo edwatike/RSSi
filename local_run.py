@@ -2,7 +2,7 @@ import feedparser
 import requests
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
-from apscheduler.schedulers.asyncio import AsyncIOScheduler  # Правильный импорт для версии 3.10.4
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import os
 from datetime import datetime
 
@@ -32,7 +32,7 @@ RSS_FEEDS = [
 app = Application.builder().token(BOT_TOKEN).build()
 
 # Функция для проверки новых статей
-async def check_feeds(context: ContextTypes.DEFAULT_TYPE):
+async def check_feeds(bot):  # Изменили аргумент на bot
     print("check_feeds started")
     for feed_url in RSS_FEEDS:
         print(f"Checking feed: {feed_url}")
@@ -79,7 +79,7 @@ async def check_feeds(context: ContextTypes.DEFAULT_TYPE):
                 article_url = f"{SERVER_URL}/articles/{filename}"
                 message = f"New article: {title}\n{article_url}"
                 # Отправляем сообщение в канал
-                await context.bot.send_message(chat_id=CHANNEL_ID, text=message)
+                await bot.send_message(chat_id=CHANNEL_ID, text=message)
             else:
                 print(f"Failed to upload {filename}: {response.text}")
             
@@ -95,7 +95,7 @@ app.add_handler(CommandHandler("start", start))
 
 # Настройка планировщика
 scheduler = AsyncIOScheduler()
-scheduler.add_job(check_feeds, 'interval', seconds=10, args=[ContextTypes.DEFAULT_TYPE()])
+scheduler.add_job(check_feeds, 'interval', seconds=10, args=[app.bot])  # Передаём app.bot
 scheduler.start()
 
 # Запуск бота
