@@ -1,15 +1,34 @@
-const jwt = require('jsonwebtoken');
+import os
+from telegram import Bot
+from telegram.ext import Application
+import logging
 
-const JWT_SECRET = 'your-secret-key'; // Тот же ключ, что в articles.js
-const USERNAME = 'user'; // Замени на свое имя пользователя
-const PASSWORD = 'password'; // Замени на свой пароль
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-module.exports = (req, res) => {
-  const { username, password } = req.body;
-  if (username === USERNAME && password === PASSWORD) {
-    const token = jwt.sign({ user: username }, JWT_SECRET, { expiresIn: '1h' });
-    res.json({ token });
-  } else {
-    res.status(401).send('Invalid credentials');
-  }
-};
+# Получаем переменные окружения
+TOKEN = os.getenv("TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
+
+# Функция для Vercel (обработчик HTTP-запросов)
+def handler(request):
+    try:
+        logger.info("Received request on /api/check")
+        
+        # Инициализация бота
+        bot = Bot(token=TOKEN)
+        
+        # Отправка тестового сообщения в чат
+        bot.send_message(chat_id=CHAT_ID, text="Server is running! 🚀")
+        
+        return {
+            "statusCode": 200,
+            "body": "Request processed successfully!"
+        }
+    except Exception as e:
+        logger.error(f"Error: {e}")
+        return {
+            "statusCode": 500,
+            "body": f"Error: {e}"
+        }
