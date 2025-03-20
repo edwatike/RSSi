@@ -2,19 +2,19 @@ import feedparser
 import requests
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.async_ import AsyncScheduler  # Изменили импорт
 import os
 from datetime import datetime
 
 # Токен бота
 BOT_TOKEN = "7763394832:AAFzvdwFrxtzfVeaJMwCDvsoD0JmYZ7Tkqo"
 
-# URL сервера (замени после деплоя)
+# URL сервера
 SERVER_URL = "https://rssbot-server.onrender.com"
 SERVER_USERNAME = "admin"
 SERVER_PASSWORD = "yourpassword123"
 
-# ID канала (замени на свой канал, например, "@M@noWnewnew")
+# ID канала (замени на свой канал)
 CHANNEL_ID = "@noWnewnew"  # Укажи свой канал здесь
 
 # Папка для временного хранения файлов
@@ -94,7 +94,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app.add_handler(CommandHandler("start", start))
 
 # Настройка планировщика
-scheduler = AsyncIOScheduler()
+scheduler = AsyncScheduler()  # Изменили создание планировщика
 scheduler.add_job(check_feeds, 'interval', seconds=10, args=[ContextTypes.DEFAULT_TYPE()])
 scheduler.start()
 
